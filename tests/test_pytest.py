@@ -4,8 +4,7 @@ Tests for functions in the functions module
 
 import numpy as np
 import pytest
-
-import src.functions as f
+import src.utils as f
 from src.lightcurve import LightCurve, LightCurveCycles, cut_lc
 
 

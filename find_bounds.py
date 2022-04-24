@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import src.functions as f
+import src.utils as f
 from src.lightcurve import LightCurve, cut_lc, perform_surgery, plot_lc_cycles
+from src.loss_functions import mean_absolute_diff
 from src.types import PositionalBounds
 
 OBS = "1232"
@@ -52,7 +53,7 @@ def compute_bounds(
                 bounds,
                 template,
                 lc.photon_rate,
-                loss_function=f.mean_absolute_diff,
+                loss_function=mean_absolute_diff,
                 min_period=int(MIN_PERIOD / lc.binsize),
                 delta_space_size=10,
             )

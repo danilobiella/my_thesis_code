@@ -1,3 +1,7 @@
+"""
+Functions and Classes to deal with lightcurves.
+"""
+
 from dataclasses import dataclass, field
 from typing import Optional, Tuple
 
@@ -5,13 +9,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
-import src.functions as f
-from src.functions import PositionalBounds
+import src.utils as f
+from src.utils import PositionalBounds
 
 
 @dataclass
 class LightCurve:
-    """"""
+    """
+    Class to store lightcurve data
+    """
 
     time: npt.NDArray[np.float64]
     photon_rate: npt.NDArray[np.float64]
@@ -23,18 +29,22 @@ class LightCurve:
 
 @dataclass
 class LightCurveCycles:
+    """
+    Class which represents a cutted lightcurve
+    """
+
     cycles: list[LightCurve]
 
-    def __str__(self):
-        return f"Number of cycles: {len(self.cycles)}"
-
-    def __iter__(self) -> list[LightCurve]:
-        return self.cycles
-
-    def times(self):
+    def times(self) -> list[npt.NDArray[np.float64]]:
+        """
+        Return a list containing the time values of the cycles
+        """
         return list(cycle.time for cycle in self.cycles)
 
     def photon_rates(self) -> list[npt.NDArray[np.float64]]:
+        """
+        Return a list containing the photon rate values of the cycles
+        """
         return list(cycle.photon_rate for cycle in self.cycles)
 
 
@@ -55,7 +65,7 @@ def cut_lc(
 
 
 def plot_lc(lc: LightCurve, ax: Optional[plt.Axes] = None, **kwargs) -> plt.Axes:
-    """"""
+    """Plots a lightcurve"""
     if ax is None:
         _, ax = plt.subplots(dpi=150, figsize=(10, 4))
 
@@ -71,6 +81,7 @@ def plot_lc_cycles(
     lc_cycles: LightCurveCycles,
     ax: Optional[plt.Axes] = None,
 ) -> plt.Axes:
+    """Plots a cutted lightcurve"""
     if ax is None:
         _, ax = plt.subplots(dpi=150, figsize=(10, 4))
 
@@ -84,17 +95,18 @@ def plot_lc_cycles(
     return ax
 
 
-def perform_surgery(
-    lc: LightCurve, cut_positions: list[Tuple[float, float]]
-) -> LightCurve:
-    x2A = []
-    y2A = []
-    for (a, b) in cut_positions:
+def perform_surgery(lc: LightCurve, intervals: list[Tuple[int, int]]) -> LightCurve:
+    """
+    Cuts the lightcurve into intervals and glue them together.
+    """
+    x = []
+    y = []
+    for (a, b) in intervals:
         a = int(a / lc.binsize)
         b = int(b / lc.binsize)
-        x2A = x2A + list(lc.time[a:b])
-        y2A = y2A + list(lc.photon_rate[a:b])
+        x = x + list(lc.time[a:b])
+        y = y + list(lc.photon_rate[a:b])
 
-    x2A = np.array(x2A)
-    y2A = np.array(y2A)
-    return LightCurve(x2A, y2A)
+    x = np.array(x)
+    y = np.array(y)
+    return LightCurve(x, y)

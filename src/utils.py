@@ -62,19 +62,16 @@ def find_isolated_local_minima(
     return find_isolated_local_maxima(flipped_array, min_distance)
 
 
-def compute_periods(
-    bounds: PositionalBounds, binsize: Optional[float] = 1.0
-) -> npt.NDArray[np.float64]:
+def compute_periods(bounds: PositionalBounds) -> npt.NDArray[np.float64]:
     """
     Compute periods based on given bounds. It ignores the first segment.
     """
-    periods = np.diff(bounds)
-    return periods * binsize
+    return np.diff(bounds)
 
 
 def stretch(y: npt.ArrayLike, new_length: int) -> npt.NDArray[np.float64]:
     """
-    stretches a function
+    Stretch or shrink an array to the desired length, interpolating values.
     """
     y = np.array(y)
     x = np.linspace(0, 1, num=y.shape[0])
@@ -116,54 +113,6 @@ def make_template(
     return template
 
 
-def compute_new_bounds(
-    bounds: PositionalBounds,
-    template: npt.NDArray[np.float64],
-    lc: npt.NDArray[np.float64],
-    loss_function: LossFunction,
-    min_period: int = 20,
-    delta_space_size: int = 5,
-) -> PositionalBounds:
-    """
-    summary_
-
-    Args:
-        bounds (PositionalBounds): _description_
-        template (npt.NDArray[np.float64]): _description_
-        lc (npt.NDArray[np.float64]): _description_
-        loss_function (LossFunction): _description_
-        min_period (int, optional): _description_. Defaults to 20.
-        delta_space_size (int, optional): _description_. Defaults to 5.
-
-    Returns:
-        PositionalBounds: _description_
-    """
-    for i in range(len(bounds) - 3):
-        bounds_slice = bounds[i : i + 4]
-        lc_piece = lc[
-            bounds_slice[0] : bounds_slice[-1]
-        ]  # Selects a 3 cycle piece of lightcurve
-
-        losses = []
-        delta_space = np.arange(-delta_space_size, delta_space_size, 1)
-        for delta1, delta2 in itertools.product(delta_space, repeat=2):
-            synthetic_lc_piece = make_synthetic_light_curve(
-                template, bounds_slice, delta1, delta2
-            )
-            loss = loss_function(lc_piece, synthetic_lc_piece)
-            losses.append(loss)
-
-        delta1, delta2 = _finds_best_delta(losses, delta_space)
-
-        # New bounds
-        bounds[i + 1] = bounds[i + 1] + delta1
-        bounds[i + 2] = bounds[i + 2] + delta2
-
-    bounds = remove_bad_bounds(bounds, min_period=min_period)
-
-    return bounds
-
-
 def remove_bad_bounds(bounds: PositionalBounds, min_period: float) -> PositionalBounds:
     """
     Removes bounds which period (length) doesn't exceed min_period.
@@ -185,6 +134,65 @@ def remove_bad_bounds(bounds: PositionalBounds, min_period: float) -> Positional
     return bounds
 
 
+def compute_new_bounds(
+    bounds: PositionalBounds,
+    template: npt.NDArray[np.float64],
+    lc: npt.NDArray[np.float64],
+    loss_function: LossFunction,
+    min_period: int = 20,
+    delta_space_size: int = 5,
+) -> PositionalBounds:
+    """
+    Given a lightcurve, a template and a set of bounds, finds an improved set
+    of bounds by minimizing a given loss function acting between the given
+    lightcurve and a synthetic lightcurve which is constructed with the template.
+    For more information see: PAPER.
+
+    Args:
+        bounds (PositionalBounds): The starting bounds.
+        template (npt.NDArray[np.float64]): The template used to construct
+            the synthetic lightcurve.
+        lc (npt.NDArray[np.float64]): The lightcurve used to fit the synthetic
+            lightcurve.
+        loss_function (LossFunction): Loss function to minimize.
+        min_period (int, optional): The minimum period for a cycle not to be
+             discarded. This is measured in "positional units", that is,
+             if a lightcurve is binned at 0.5 s intervals and you want a
+             minimum period of 30, then you must provide a value of 30 / 0.5 = 60.
+             Defaults to 20.
+        delta_space_size (int, optional): Size of neighborhood of every bound
+            which will beused to minimize the loss function, measured in
+            "positional units" (see above). Defaults to 5.
+
+    Returns:
+        PositionalBounds: The improved bounds
+    """
+    for i in range(len(bounds) - 3):
+        bounds_slice = bounds[i : i + 4]
+        lc_piece = lc[
+            bounds_slice[0] : bounds_slice[-1]
+        ]  # Selects a 3 cycle piece of lightcurve
+
+        losses = []
+        delta_space = np.arange(-delta_space_size, delta_space_size, 1)
+        for delta1, delta2 in itertools.product(delta_space, repeat=2):
+            synthetic_lc_piece = _make_synthetic_light_curve(
+                template, bounds_slice, delta1, delta2
+            )
+            loss = loss_function(lc_piece, synthetic_lc_piece)
+            losses.append(loss)
+
+        delta1, delta2 = _finds_best_delta(losses, delta_space)
+
+        # New bounds
+        bounds[i + 1] = bounds[i + 1] + delta1
+        bounds[i + 2] = bounds[i + 2] + delta2
+
+    bounds = remove_bad_bounds(bounds, min_period=min_period)
+
+    return bounds
+
+
 def _remove_consecutive(data, stepsize=1):
     if data.shape[0] == 0:
         return data
@@ -193,7 +201,7 @@ def _remove_consecutive(data, stepsize=1):
     return np.array([group[0] for group in consecutive_groups])
 
 
-def make_synthetic_light_curve(
+def _make_synthetic_light_curve(
     template: npt.NDArray[np.float64],
     bounds_slice: PositionalBounds,
     delta1: int,
@@ -231,17 +239,3 @@ def _finds_best_delta(
     delta2 = delta_space[delta_2_pos]
 
     return delta1, delta2
-
-
-def mean_absolute_diff(
-    vector1: Optional[npt.NDArray[np.float64]],
-    vector2: Optional[npt.NDArray[np.float64]],
-) -> float:
-
-    if vector1 is None or vector2 is None:
-        return float("inf")
-
-    if vector1.shape[0] != vector2.shape[0]:
-        raise ValueError("Vectors need to be of same size.")
-
-    return sum(abs(vector1 - vector2)) / vector1.shape[0]
