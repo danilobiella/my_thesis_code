@@ -1,5 +1,5 @@
 """
-Functions and Classes to deal with lightcurves.
+Functions and classes to deal with lightcurves.
 """
 
 from dataclasses import dataclass, field
@@ -9,8 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
-import src.utils as f
-from src.utils import PositionalBounds
+import src.utils as u
 
 
 @dataclass
@@ -29,9 +28,7 @@ class LightCurve:
 
 @dataclass
 class LightCurveCycles:
-    """
-    Class which represents a cutted lightcurve
-    """
+    """Class which represents a cutted lightcurve"""
 
     cycles: list[LightCurve]
 
@@ -41,15 +38,19 @@ class LightCurveCycles:
         """
         return list(cycle.time for cycle in self.cycles)
 
-    def photon_rates(self) -> list[npt.NDArray[np.float64]]:
+    def photon_rates(
+        self, idx: Optional[list[int]] = None
+    ) -> list[npt.NDArray[np.float64]]:
         """
         Return a list containing the photon rate values of the cycles
         """
-        return list(cycle.photon_rate for cycle in self.cycles)
+        if idx is None:
+            idx = list(range(len(self.cycles)))
+        return [cycle.photon_rate for i, cycle in enumerate(self.cycles) if i in idx]
 
 
 def cut_lc(
-    lc: LightCurve, bounds: PositionalBounds, max_cycle_len: int = 500
+    lc: LightCurve, bounds: u.PositionalBounds, max_cycle_len: int = 500
 ) -> LightCurveCycles:
     """
     Cut lightcurve into cycles.
@@ -88,7 +89,7 @@ def plot_lc_cycles(
     for photon_rate in lc_cycles.photon_rates():
         phi = np.linspace(0, 2, len(photon_rate) * 2)
         ax.plot(phi, list(photon_rate) * 2, "-", lw=0.5, ms=1, color="gray", alpha=0.4)
-    template = f.make_template(lc_cycles.photon_rates(), 100)
+    template = u.make_template(lc_cycles.photon_rates(), 100)
 
     phi = np.linspace(0, 2, num=200)
     ax.plot(phi, list(template) * 2, color="darkorange")

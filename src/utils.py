@@ -1,15 +1,15 @@
 """
-Helper functions
+Useful utility functions.
 """
 
-import itertools
-from typing import Optional
+
+from typing import Union
 
 import numpy as np
 import numpy.typing as npt
 import scipy.interpolate
 
-from src.types import LossFunction, PositionalBounds
+PositionalBounds = Union[list[int], npt.NDArray[np.int64]]
 
 
 def find_isolated_local_maxima(
@@ -134,108 +134,9 @@ def remove_bad_bounds(bounds: PositionalBounds, min_period: float) -> Positional
     return bounds
 
 
-def compute_new_bounds(
-    bounds: PositionalBounds,
-    template: npt.NDArray[np.float64],
-    lc: npt.NDArray[np.float64],
-    loss_function: LossFunction,
-    min_period: int = 20,
-    delta_space_size: int = 5,
-) -> PositionalBounds:
-    """
-    Given a lightcurve, a template and a set of bounds, finds an improved set
-    of bounds by minimizing a given loss function acting between the given
-    lightcurve and a synthetic lightcurve which is constructed with the template.
-    For more information see: PAPER.
-
-    Args:
-        bounds (PositionalBounds): The starting bounds.
-        template (npt.NDArray[np.float64]): The template used to construct
-            the synthetic lightcurve.
-        lc (npt.NDArray[np.float64]): The lightcurve used to fit the synthetic
-            lightcurve.
-        loss_function (LossFunction): Loss function to minimize.
-        min_period (int, optional): The minimum period for a cycle not to be
-             discarded. This is measured in "positional units", that is,
-             if a lightcurve is binned at 0.5 s intervals and you want a
-             minimum period of 30, then you must provide a value of 30 / 0.5 = 60.
-             Defaults to 20.
-        delta_space_size (int, optional): Size of neighborhood of every bound
-            which will beused to minimize the loss function, measured in
-            "positional units" (see above). Defaults to 5.
-
-    Returns:
-        PositionalBounds: The improved bounds
-    """
-    for i in range(len(bounds) - 3):
-        bounds_slice = bounds[i : i + 4]
-        lc_piece = lc[
-            bounds_slice[0] : bounds_slice[-1]
-        ]  # Selects a 3 cycle piece of lightcurve
-
-        losses = []
-        delta_space = np.arange(-delta_space_size, delta_space_size, 1)
-        for delta1, delta2 in itertools.product(delta_space, repeat=2):
-            synthetic_lc_piece = _make_synthetic_light_curve(
-                template, bounds_slice, delta1, delta2
-            )
-            loss = loss_function(lc_piece, synthetic_lc_piece)
-            losses.append(loss)
-
-        delta1, delta2 = _finds_best_delta(losses, delta_space)
-
-        # New bounds
-        bounds[i + 1] = bounds[i + 1] + delta1
-        bounds[i + 2] = bounds[i + 2] + delta2
-
-    bounds = remove_bad_bounds(bounds, min_period=min_period)
-
-    return bounds
-
-
 def _remove_consecutive(data, stepsize=1):
     if data.shape[0] == 0:
         return data
 
     consecutive_groups = np.split(data, np.where(np.diff(data) != stepsize)[0] + 1)
     return np.array([group[0] for group in consecutive_groups])
-
-
-def _make_synthetic_light_curve(
-    template: npt.NDArray[np.float64],
-    bounds_slice: PositionalBounds,
-    delta1: int,
-    delta2: int,
-) -> Optional[npt.NDArray[np.float64]]:
-    l1 = bounds_slice[1] + delta1 - bounds_slice[0]
-    l2 = bounds_slice[2] + delta2 - bounds_slice[1] - delta1
-    l3 = bounds_slice[3] - bounds_slice[2] - delta2
-
-    if l1 * l2 * l3 <= 0:
-        return None
-
-    stretched_template1 = stretch(template, l1)
-    stretched_template2 = stretch(template, l2)
-    stretched_template3 = stretch(template, l3)
-
-    return np.concatenate(
-        [stretched_template1, stretched_template2, stretched_template3],
-        axis=0,
-    )
-
-
-def _finds_best_delta(
-    losses: npt.ArrayLike, delta_space: npt.NDArray[np.int64]
-) -> tuple[int, int]:
-
-    losses = np.array(losses)
-
-    best_pos = np.where(losses == min(losses))[0][0]
-
-    delta_1_pos = best_pos // len(delta_space)
-    delta_2_pos = best_pos % len(delta_space)
-
-    delta1 = delta_space[delta_1_pos]
-    delta2 = delta_space[delta_2_pos]
-
-    return delta1, delta2
