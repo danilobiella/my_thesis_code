@@ -48,6 +48,9 @@ class LightCurveCycles:
             idx = list(range(len(self.cycles)))
         return [cycle.photon_rate for i, cycle in enumerate(self.cycles) if i in idx]
 
+    def __iter__(self):
+        return iter(self.cycles)
+
 
 def cut_lc(
     lc: LightCurve, bounds: u.PositionalBounds, max_cycle_len: int = 500

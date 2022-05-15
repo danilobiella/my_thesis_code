@@ -19,11 +19,12 @@ LossFunction = Callable[
 
 def compute_bounds(
     lc: lcu.LightCurve,
+    template,
     bounds: u.PositionalBounds,
     index_function: IndexFunction,
     min_period: int,
     n_iterations: int,
-    n_subiterations: int = 5,
+    n_subiterations: int = 30,
 ) -> u.PositionalBounds:
     """
     Given a lightcurve and a set of bounds, finds an improved set
@@ -33,12 +34,11 @@ def compute_bounds(
     min_period (int, optional): The minimum period for a cycle not to be
         discarded. This is measured in "positional units", that is,
         if a lightcurve is binned at 0.5 s intervals and you want a
-        minimum period of 30, then you must provide a value of 30 / 0.5 = 60.
+        minimum period of 30, then you must provide a value of 30 / 0.5 = 60.y
         Defaults to 20.
     """  # FIXME fix docstring
 
     lc_cycles = lcu.cut_lc(lc, bounds)
-    template = u.make_template(lc_cycles.photon_rates(), 100)
 
     for i in range(n_iterations):
         print(f"Iteration {i} of {n_iterations}")
@@ -59,7 +59,7 @@ def compute_bounds(
             if len(bounds) == len(old_bounds):
                 bounds_diff = sum(abs(old_bounds - bounds))
                 print("\tbounds diff: ", bounds_diff)
-                if bounds_diff > 0:
+                if bounds_diff == 0:
                     break
 
         periods = u.compute_periods(bounds)
