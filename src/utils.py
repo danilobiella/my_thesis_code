@@ -2,18 +2,17 @@
 Useful utility functions.
 """
 
+from typing import List, Union
 
-from typing import Union
-
+import numba
 import numpy as np
 import numpy.typing as npt
-import scipy.interpolate
 
-PositionalBounds = Union[list[int], npt.NDArray[np.int64]]
+PositionalBounds = Union[List[int], npt.NDArray[np.int64]]
 
 
 def find_isolated_local_maxima(
-    array: list[float], min_distance: int
+    array: List[float], min_distance: int
 ) -> PositionalBounds:
     """
     Finds local maxima of array which are at least min_distance apart.
@@ -51,7 +50,7 @@ def find_isolated_local_maxima(
 
 
 def find_isolated_local_minima(
-    array: list[float], min_distance: int
+    array: List[float], min_distance: int
 ) -> PositionalBounds:
     """
     Finds local minima of array which are at least min_distance apart.
@@ -69,23 +68,21 @@ def compute_periods(bounds: PositionalBounds) -> npt.NDArray[np.float64]:
     return np.diff(bounds)
 
 
+@numba.njit
 def stretch(y: npt.ArrayLike, new_length: int) -> npt.NDArray[np.float64]:
     """
     Stretch or shrink an array to the desired length, interpolating values.
     """
-    y = np.array(y)
-    x = np.linspace(0, 1, num=y.shape[0])
+    x = np.linspace(0, 1, len(y))
+    x_new = np.linspace(0, 1, new_length)
 
-    f = scipy.interpolate.interp1d(x, y)
-
-    x_new = np.linspace(0, 1, num=new_length)
-    y_new = f(x_new)
+    y_new = np.interp(x_new, x, y)
 
     return y_new
 
 
 def make_template(
-    arrays: list[npt.NDArray[np.float64]], n_bins: int = 100
+    arrays: List[npt.NDArray[np.float64]], n_bins: int = 100
 ) -> npt.NDArray[np.float64]:
     """
     Finds the template of a list of arrays. The arrays can be of varying length

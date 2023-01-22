@@ -2,8 +2,9 @@
 This module contain the algorithm used to cut SEE PAPER.
 """
 import itertools
-from typing import Callable, Optional
+from typing import Callable, Optional, List
 
+import numba
 import numpy as np
 import numpy.typing as npt
 
@@ -11,7 +12,7 @@ import src.lightcurve as lcu
 import src.utils as u
 from src.loss_functions import mean_absolute_diff
 
-IndexFunction = Callable[[lcu.LightCurveCycles], list[int]]
+IndexFunction = Callable[[lcu.LightCurveCycles], List[int]]
 LossFunction = Callable[
     [Optional[npt.NDArray[np.float64]], Optional[npt.NDArray[np.float64]]], float
 ]
@@ -114,6 +115,10 @@ def compute_new_bounds(
             synthetic_lc_piece = _make_synthetic_light_curve(
                 template, bounds_slice, delta1, delta2
             )
+
+            if synthetic_lc_piece is None:
+                losses.append(np.Infinity)
+                continue
             loss = loss_function(lc_piece, synthetic_lc_piece)
             losses.append(loss)
 
@@ -126,6 +131,7 @@ def compute_new_bounds(
     return bounds
 
 
+@numba.njit
 def _make_synthetic_light_curve(
     template: npt.NDArray[np.float64],
     bounds_slice: u.PositionalBounds,
@@ -144,7 +150,7 @@ def _make_synthetic_light_curve(
     stretched_template3 = u.stretch(template, l3)
 
     return np.concatenate(
-        [stretched_template1, stretched_template2, stretched_template3],
+        (stretched_template1, stretched_template2, stretched_template3),
         axis=0,
     )
 
