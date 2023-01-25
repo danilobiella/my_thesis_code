@@ -33,7 +33,7 @@ def main(args):
     """
     data = np.loadtxt(args.lc_file, skiprows=2)
     lc = lcu.LightCurve(data[:, 0], data[:, 1])
-    # lc = lcu.perform_surgery(lc, CUT_POSITIONS)
+    lc = lcu.perform_surgery(lc, CUT_POSITIONS)
 
     fig, ax = plt.subplots(dpi=150, figsize=(10, 4))
     ax = lcu.plot_lc(lc, ax)
@@ -74,7 +74,6 @@ def main(args):
     fig.savefig("plots/final_bounds.png")
 
     # TODO Save bounds times
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a neural net")
