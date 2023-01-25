@@ -73,7 +73,7 @@ def compute_bounds(
 
     return bounds
 
-
+@numba.njit
 def compute_new_bounds(
     bounds: u.PositionalBounds,
     template: npt.NDArray[np.float64],
@@ -111,16 +111,17 @@ def compute_new_bounds(
 
         losses = []
         delta_space = np.arange(-delta_space_size, delta_space_size, 1)
-        for delta1, delta2 in itertools.product(delta_space, repeat=2):
-            synthetic_lc_piece = _make_synthetic_light_curve(
-                template, bounds_slice, delta1, delta2
-            )
+        for delta1 in delta_space:
+            for delta2 in delta_space:
+                synthetic_lc_piece = _make_synthetic_light_curve(
+                    template, bounds_slice, delta1, delta2
+                )
 
-            if synthetic_lc_piece is None:
-                losses.append(np.Infinity)
-                continue
-            loss = loss_function(lc_piece, synthetic_lc_piece)
-            losses.append(loss)
+                if synthetic_lc_piece is None:
+                    losses.append(np.Infinity)
+                    continue
+                loss = loss_function(lc_piece, synthetic_lc_piece)
+                losses.append(loss)
 
         delta1, delta2 = _finds_best_delta(losses, delta_space)
 
@@ -155,6 +156,7 @@ def _make_synthetic_light_curve(
     )
 
 
+@numba.njit
 def _finds_best_delta(
     losses: npt.ArrayLike, delta_space: npt.NDArray[np.int64]
 ) -> tuple[int, int]:

@@ -5,4 +5,4 @@ def first_orbit_cycles(_: lcu.LightCurveCycles) -> List[int]:
     """
     Always returns the index of the first 35 cycles.
     """
-    return list(range(35))
+    return list(range(38))
