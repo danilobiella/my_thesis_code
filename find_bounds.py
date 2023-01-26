@@ -32,17 +32,17 @@ def main(args):
     Main
     """
     data = np.loadtxt(args.lc_file, skiprows=2)
-    lc = lcu.LightCurve(data[:, 0], data[:, 1])
-    lc = lcu.perform_surgery(lc, CUT_POSITIONS)
+    lightcurve = lcu.LightCurve(data[:, 0], data[:, 1])
+    lightcurve = lcu.perform_surgery(lightcurve, CUT_POSITIONS)
 
     fig, ax = plt.subplots(dpi=150, figsize=(10, 4))
-    ax = lcu.plot_lc(lc, ax)
+    ax = lcu.plot_lc(lightcurve, ax)
     fig.savefig("plots/lc.png")
 
-    min_distance = int(60 / 2 / lc.binsize)  # FIXME Parametrize
-    starting_bounds = u.find_isolated_local_minima(lc.photon_rate, min_distance)  # type: ignore
+    min_distance = int(60 / 2 / lightcurve.binsize)  # FIXME Parametrize
+    starting_bounds = u.find_isolated_local_minima(lightcurve.photon_rate, min_distance)
 
-    lc_cycles = lcu.cut_lc(lc, starting_bounds)
+    lc_cycles = lcu.cut_lc(lightcurve, starting_bounds)
     if args.template_in is not None:
         template = np.loadtxt(args.template_in)
     else:
@@ -54,14 +54,14 @@ def main(args):
     fig.savefig("plots/starting_bounds.png")
 
     bounds = bounds_finder.compute_bounds(
-        lc,
+        lightcurve,
         template,
         starting_bounds,
         index_function=first_orbit_cycles,
         n_iterations=args.niter,
         min_period=MIN_PERIOD,
     )
-    lc_cycles = lcu.cut_lc(lc, bounds)
+    lc_cycles = lcu.cut_lc(lightcurve, bounds)
 
     # Make template
     if args.template_out is not None:
@@ -74,6 +74,7 @@ def main(args):
     fig.savefig("plots/final_bounds.png")
 
     # TODO Save bounds times
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a neural net")
